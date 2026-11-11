@@ -1,0 +1,6 @@
+id=mosey_airdrop_s9280
+name=Samsung AirDrop (Mosey) Enabler
+version=v1.0
+versionCode=1
+author=DSH
+description=Restore HK/global mosey stack (mosey_server + MoseyApp) on OneUI 8.5 CHC to enable AirDrop/Quick Share Apple interoperability.

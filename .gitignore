@@ -1,0 +1,13 @@
+# build artifacts
+dist/
+out/
+*.zip
+*.img
+*.img.lz4
+*.tar.md5
+
+# macOS
+.DS_Store
+
+# local work
+_work/

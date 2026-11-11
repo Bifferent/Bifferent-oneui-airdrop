@@ -1,0 +1,8 @@
+# mosey_server: permissive so the native daemon can open the wonder packet socket /
+# nl80211 vendor path (denied by stock vendor policy on CHC firmware, EACCES at "Starting mosey0")
+permissive mosey_server
+allow ksu mosey_server process transition
+allow ksu self process setexec
+allow ksu mosey_server_exec file { read open execute map getattr }
+allow mosey_server mosey_server_exec file entrypoint
+allow ksu vendor_file file { read open execute map getattr }
