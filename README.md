@@ -175,6 +175,48 @@ device_visibility_type: 1=您的设备 2=联系人 3=任何人
 
 ---
 
+## 性能实测
+
+mosey 走的是 userspace AWDL 实现，吞吐有明显上限。实测（SM-S9280 → iPhone，645MB MP4）：
+
+| 指标 | 数值 |
+|---|---|
+| 文件 | `20261113_000642.mp4`，676,653,957 字节（645 MiB） |
+| 耗时 | 246 秒 |
+| 载荷平均速度 | **2.75 MB/s ≈ 22 Mbps** |
+| `wonder0` tx 平均（含协议开销） | 3.0 MB/s ≈ 24 Mbps |
+| 5 秒峰值 | 4.7 MB/s ≈ 39 Mbps |
+
+发送与接收基本对称，瓶颈都在三星侧：
+
+```
+mosey_daemon: Transceiver task channel is full      # 内部收发队列持续打满
+mosey_server  spin-sleep      67.8% CPU             # 软件 AWDL 时序
+mosey_server  tokio-runtime-w 17.8% CPU
+```
+
+- `mosey_server` 已运行在性能核（亲和性 `fc`），worker nice -8；
+- 传输时手机未连接 Wi-Fi AP，射频独占；
+- `mosey_server` 是三星 2026-02-04 版闭源二进制，`wonder.ko` 只有 `physical_name` 一个参数，**没有队列/线程/带宽相关的可调项**。
+
+结论：**20–30 Mbps 是该实现的正常水平**，模块层面无法优化；能改善的只有环境（清内存、保持亮屏、两台设备靠近、避免同时连 AP）。
+
+### 复现测速
+
+传输时在电脑上运行：
+
+```sh
+./scripts/measure_throughput.sh 300
+```
+
+脚本每 2 秒读取一次 `/sys/class/net/wonder0/statistics/{tx,rx}_bytes`，结束时给出平均与峰值。也可以手动采样：
+
+```sh
+adb shell 'cat /sys/class/net/wonder0/statistics/tx_bytes'
+```
+
+---
+
 ## 从自己的固件构建模块
 
 > 需要一个港版/国际版 AP 包（`.tar.md5`），以及 `lz4`、`python3`、`erofs-utils`（`fsck.erofs`）。
@@ -223,6 +265,7 @@ logcat -b all -d | grep mosey_daemon  # daemon 日志
 - Galaxy Store 可能把 S互传 更新回国行版，模块会自动回退；
 - 「任何人」10 分钟过期，且切换后必须重启一次分享栈（已由 watcher 自动处理）；
 - 仅测试 SM-S9280 / OneUI 8.5，其它机型（尤其缺 `wonder.ko` 的国行固件）不要照搬；
+- 大文件传输速度约 20–30 Mbps（见「性能实测」），瓶颈在 mosey userspace，无模块级优化空间；
 - 临时 root 本身会影响 Play Integrity / KNOX，与本模块无关。
 
 ---
