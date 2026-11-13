@@ -65,6 +65,12 @@ if [ "$NEED_REBOOT" = "1" ]; then
   DONE=$(cat /data/adb/mosey_last_softreboot 2>/dev/null)
   if [ "$BID" != "$DONE" ]; then
     echo "$BID" > /data/adb/mosey_last_softreboot
+    # Scene's "系统自救" (scene_resurgence) treats a post-fs-data re-run within 180s as a
+    # bootloop and disables every other module. Clear its markers before our soft reboot.
+    for m in scene_resurgence; do
+      rm -f "/data/adb/modules/$m/splash.last" "/data/adb/modules/$m/animation.last" 2>/dev/null
+    done
+    log "cleared scene_resurgence boot markers"
     log "triggering soft reboot"
     nohup /data/adb/ksud soft-reboot >> "$LOG" 2>&1 &
   else
