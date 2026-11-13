@@ -18,7 +18,10 @@ log "visibility watcher started (foreground-gated) pid=$$"
 
 LAST=""
 LAST_ACTION=0
-MTIME=""
+# initial state: remember the current value so the first real switch to 3 triggers
+V0=$(sed -n 's/.*name="device_visibility_type" value="\([0-9]*\)".*/\1/p' "$PREF" 2>/dev/null | tail -1)
+[ -n "$V0" ] && LAST="$V0"
+MTIME=$(stat -c %Y "$PREF" 2>/dev/null)
 
 while true; do
   if ! pidof com.samsung.android.app.sharelive >/dev/null 2>&1; then
