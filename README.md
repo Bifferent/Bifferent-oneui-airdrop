@@ -162,7 +162,7 @@ module/
 
 ## 自动恢复
 
-`watch_visibility.sh` 以低功耗方式监听（每 10 秒只 `stat` 一次文件 mtime，只有设置真的变化才解析 XML）：
+`watch_visibility.sh` 以低功耗方式监听：**S互传 未运行时只每 30 秒 `pidof` 一次**，运行中才每 3 秒检查 prefs 的 mtime，且只有设置真的变化才解析 XML：
 
 ```
 /data/data/com.samsung.android.app.sharelive/shared_prefs/quick_share_nearby_setting_pref.xml
