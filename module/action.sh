@@ -19,5 +19,8 @@ sleep 1
 am force-stop com.samsung.android.app.sharelive >/dev/null 2>&1
 sleep 1
 sleep 1
-for i in 1 2 3; do am start -n com.samsung.android.app.sharelive/.presentation.main.MainActivity >/dev/null 2>&1 && break; sleep 2; done
+# NO_OPEN=1 (used by the low-power watcher) keeps S互传 in background
+if [ "${NO_OPEN:-0}" != "1" ]; then
+  for i in 1 2 3; do am start -n com.samsung.android.app.sharelive/.presentation.main.MainActivity >/dev/null 2>&1 && break; sleep 2; done
+fi
 log "done, mosey_server pid=$(pidof mosey_server)"
