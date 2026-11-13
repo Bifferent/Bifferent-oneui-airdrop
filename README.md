@@ -162,14 +162,14 @@ module/
 
 ## 自动恢复
 
-`watch_visibility.sh` 每 3 秒读一次：
+`watch_visibility.sh` 以低功耗方式监听（每 10 秒只 `stat` 一次文件 mtime，只有设置真的变化才解析 XML）：
 
 ```
 /data/data/com.samsung.android.app.sharelive/shared_prefs/quick_share_nearby_setting_pref.xml
 device_visibility_type: 1=您的设备 2=联系人 3=任何人
 ```
 
-检测到切回 **3（任何人）** 后等 3 秒自动执行 `action.sh`（重启 HAL + MoseyApp + S互传），20 秒冷却。代价是 S互传 窗口会闪退一次，重新打开即可。
+检测到切回 **3（任何人）** 后等 3 秒自动执行 `action.sh`（重启 HAL + MoseyApp + S互传），20 秒冷却。watcher 触发的重启是**静默**的（`NO_OPEN=1`），不会把 S互传 拉到前台；你自己点开即可。
 
 也可以在 KernelSU 管理器点模块的 **action** 按钮手动触发。
 
