@@ -1,7 +1,8 @@
 #!/system/bin/sh
-# Low-power visibility watcher.
-# Polls only the prefs mtime every 10s (one stat call) and parses the XML only when it
-# actually changed. Silent restart: does not bring S互传 to the foreground.
+# Foreground-gated visibility watcher.
+# - When S互传 is not running: only one cheap "pidof" every 30s (no prefs access).
+# - When S互传 is running: poll the prefs mtime every 3s; parse only on change.
+# - On a switch to "任何人" (3), silently restart the share stack (NO_OPEN=1).
 MODDIR=${0%/*}
 PREF=/data/data/com.samsung.android.app.sharelive/shared_prefs/quick_share_nearby_setting_pref.xml
 PIDFILE=/data/adb/mosey_watch.pid
@@ -13,17 +14,26 @@ if [ -f "$PIDFILE" ]; then
   [ -n "$old" ] && kill -9 "$old" 2>/dev/null
 fi
 echo $$ > "$PIDFILE"
-log "visibility watcher started (10s low-power) pid=$$"
+log "visibility watcher started (foreground-gated) pid=$$"
 
 LAST=""
 LAST_ACTION=0
-MTIME=$(stat -c %Y "$PREF" 2>/dev/null)
+MTIME=""
 
 while true; do
-  sleep 10
+  if ! pidof com.samsung.android.app.sharelive >/dev/null 2>&1; then
+    # app not running: nothing can change the visibility setting
+    sleep 30
+    continue
+  fi
+
   M=$(stat -c %Y "$PREF" 2>/dev/null)
-  [ "$M" = "$MTIME" ] && continue
+  if [ "$M" = "$MTIME" ]; then
+    sleep 3
+    continue
+  fi
   MTIME="$M"
+
   V=$(sed -n 's/.*name="device_visibility_type" value="\([0-9]*\)".*/\1/p' "$PREF" 2>/dev/null | tail -1)
   NOW=$(date +%s)
   if [ -n "$V" ] && [ "$V" != "$LAST" ]; then
@@ -36,4 +46,5 @@ while true; do
     fi
     LAST="$V"
   fi
+  sleep 3
 done
