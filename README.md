@@ -2,7 +2,7 @@
 
 > 用**临时 KernelSU + 一个模块**，在**不解 BL** 的国行 Galaxy S24 Ultra 上把「与 Apple 设备分享」完整跑起来：**iPhone / Mac 双向发现、双向收发**，同时保留三星互传。
 
-**English TL;DR** — Enable Apple AirDrop (Google *mosey*) on a China-market Samsung OneUI 8.5 device **without unlocking the bootloader**, via temporary KernelSU late-load + Magic Mount RS. The module restores the mosey userspace stack from the HK firmware, switches S互传 to the global build, removes the `cn.google.services` restriction and works around SELinux/permission blockers. Tested on SM-S9280 / S9280ZCS6DZH3: discovery in both directions and file transfer to/from iPhone & Mac. **Proprietary binaries are not included** — build them from your own firmware.
+**English TL;DR** — Enable Apple AirDrop (Google *mosey*) on a China-market Samsung OneUI 8.5 device **without unlocking the bootloader**, via temporary KernelSU late-load. The module restores the mosey userspace stack from the HK firmware, switches S互传 to the global build, removes the `cn.google.services` restriction and works around SELinux/permission blockers. Tested on SM-S9280 / S9280ZCS6DZH3: discovery in both directions and file transfer to/from iPhone & Mac. **Proprietary binaries are not included** — build them from your own firmware.
 
 ---
 
@@ -20,14 +20,8 @@
 | 机型 | Galaxy S24 Ultra `SM-S9280` |
 | 固件 | 国行 CHC `S9280ZCS6DZH3`（OneUI 8.5 / Android 16） |
 | 对照固件 | 港版 OZS `S9280ZHS6DZH3` |
-| Root | **不解 BL**，KernelSU `late-load` + Magic Mount RS |
+| Root | **不解 BL**，KernelSU `late-load` 临时 root |
 | 内核 | `6.1.145-android14-11`，自带 `wonder.ko` |
-
-### 与 Magic Mount RS 的关系
-
-MMRS（Magic Mount RS）只承担**常规模块挂载**；在本机上它无法对 `/vendor`、`/system_ext` 创建 tmpfs（日志：`cannot create tmpfs on /, ignore: vendor/system_ext`）。因此本模块的 8 处 overlay 由自己的 `mount.sh` 在 init 挂载命名空间完成，**不依赖 MMRS**；只要 KernelSU 能执行模块脚本，即使不启用 MMRS 也能工作。测试环境里的「Magic Mount RS」指的是当时使用的临时 Root 工具链，而不是本模块的挂载机制。
-
----
 
 ## 背景：OneUI 8.5 的「与 Apple 设备分享」是什么
 
@@ -296,7 +290,7 @@ logcat -b all -d | grep mosey_daemon  # daemon 日志
 - 酷安原帖：[Wxxsfxyzm《可能是第一个在国行上用上 airdrop 的？》](https://www.coolapk.com/feed/73175781)
 - [thelok1s/mosey-extended](https://github.com/thelok1s/mosey-extended) —— mosey 栈逆向与 KSU 模块实现
 - [fei-ke/unlock-cn-gms](https://github.com/fei-ke/unlock-cn-gms) —— 去除 `cn.google.services` 限制
-- KernelSU / Magic Mount RS
+- KernelSU
 
 ---
 
