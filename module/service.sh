@@ -79,6 +79,10 @@ if [ "$NEED_REBOOT" = "1" ]; then
 fi
 # keep next boot clean: drop the ShareLive parse cache written for the mounted (HK) APK
 rm -f /data/system/package_cache/*/ShareLive-* 2>/dev/null
+# delayed cache clear: PMS may rewrite the cache asynchronously after boot; clear it
+# again later so an unrooted boot reparses the stock (CN) APK instead of a stale HK entry
+( sleep 120; rm -f /data/system/package_cache/*/ShareLive-* 2>/dev/null ) >/dev/null 2>&1 &
+( sleep 600; rm -f /data/system/package_cache/*/ShareLive-* 2>/dev/null ) >/dev/null 2>&1 &
 #if the module action is not run manually, keep a watcher for the visibility resume bug
 if [ -f "$MODDIR/watch_visibility.sh" ]; then
   setsid /system/bin/sh "$MODDIR/watch_visibility.sh" >/dev/null 2>&1 &
