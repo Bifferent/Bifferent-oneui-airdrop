@@ -23,6 +23,10 @@
 | Root | **不解 BL**，KernelSU `late-load` + Magic Mount RS |
 | 内核 | `6.1.145-android14-11`，自带 `wonder.ko` |
 
+### 与 Magic Mount RS 的关系
+
+MMRS（Magic Mount RS）只承担**常规模块挂载**；在本机上它无法对 `/vendor`、`/system_ext` 创建 tmpfs（日志：`cannot create tmpfs on /, ignore: vendor/system_ext`）。因此本模块的 8 处 overlay 由自己的 `mount.sh` 在 init 挂载命名空间完成，**不依赖 MMRS**；只要 KernelSU 能执行模块脚本，即使不启用 MMRS 也能工作。测试环境里的「Magic Mount RS」指的是当时使用的临时 Root 工具链，而不是本模块的挂载机制。
+
 ---
 
 ## 背景：OneUI 8.5 的「与 Apple 设备分享」是什么
@@ -289,7 +293,7 @@ logcat -b all -d | grep mosey_daemon  # daemon 日志
 
 ## 参考
 
-- 酷安原帖：Wxxsfxyzm《可能是第一个在国行上用上 airdrop 的？》
+- 酷安原帖：[Wxxsfxyzm《可能是第一个在国行上用上 airdrop 的？》](https://www.coolapk.com/feed/73175781)
 - [thelok1s/mosey-extended](https://github.com/thelok1s/mosey-extended) —— mosey 栈逆向与 KSU 模块实现
 - [fei-ke/unlock-cn-gms](https://github.com/fei-ke/unlock-cn-gms) —— 去除 `cn.google.services` 限制
 - KernelSU / Magic Mount RS
