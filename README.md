@@ -334,7 +334,7 @@ out/system/priv-app/ShareLive/ShareLive.apk        # 港版 sepGlobal
 A: 检查 `/data/adb/modules/<目录名>` 是否与 `module.prop` 的 `id` 一致——管理器用 id 找目录。
 
 **Q: 重启后未 Root 状态 S互传 闪退？**
-A: 这是替换系统 APK 后 PMS 解析缓存不一致导致的。模块会在切换 APK 前后删除 `ShareLive-*` 缓存；手动修复：`rm -f /data/system/package_cache/*/ShareLive-*` 后重启。
+A: 这是替换系统 APK 后 PMS 解析缓存不一致导致的。模块会在切换 APK 前后以及开机后 2/10 分钟删除 `ShareLive-*` 缓存；手动修复：`rm -f /data/system/package_cache/*/ShareLive-*` 后重启。从 Root（港版）回到未 Root 前，建议等 10 分钟让延迟清理生效，或手动执行这条命令后再硬重启。
 
 **Q: 切回「所有人」后突然发现不了？**
 A: ProtocolX 挂起无法恢复，模块的 `watch_visibility.sh` 会自动重启分享栈；也可以点模块 action 按钮。
