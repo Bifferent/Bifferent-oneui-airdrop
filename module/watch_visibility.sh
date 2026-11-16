@@ -45,14 +45,13 @@ while true; do
       # only restart when ProtocolX actually failed to resume; avoids closing the app
       # when the guard is intact (the common short-absence case)
       if logcat -d -t 300 2>/dev/null | grep -q "cannot resume"; then
-        log "visibility -> anyone, resume failed, silent restart"
-        LAST_ACTION=$NOW
-        NO_OPEN=1 sh "$MODDIR/action.sh" >> "$LOG" 2>&1
-        log "silent restart done"
+        # Do NOT restart the app here: the suspendGuard lives in the current process.
+        # Force-stopping destroys it and makes the next resume fail again. The reliable
+        # recovery is a user-level toggle: 联系人 -> 任何人 (suspend + resume in one process).
+        log "visibility -> anyone, resume failed; toggle 联系人 -> 任何人 to rebuild the guard"
       else
-        log "visibility -> anyone, protocol resumed normally (no restart)"
-      fi
-    fi
+        log "visibility -> anyone, protocol resumed normally"
+      fi    fi
     LAST="$V"
   fi
   sleep 3
