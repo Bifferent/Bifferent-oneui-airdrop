@@ -42,6 +42,17 @@ if ! pm path com.samsung.android.app.sharelive 2>/dev/null | grep -q '^package:/
   sleep 2
 fi
 
+# 3b) MoseyApp must be the system build; Play may auto-update it to a newer data app
+if ! pm path com.google.android.mosey 2>/dev/null | grep -q '^package:/system_ext'; then
+  log "reverting MoseyApp to system build"
+  n=0
+  while [ $n -lt 5 ]; do
+    cmd package uninstall-system-updates com.google.android.mosey >> "$LOG" 2>&1 && break
+    n=$((n+1)); sleep 3
+  done
+  sleep 1
+fi
+
 # 4) MoseyApp runtime permissions + GMS nearby sharing components
 if pm path com.google.android.mosey >/dev/null 2>&1; then
   for p in android.permission.BLUETOOTH_SCAN android.permission.BLUETOOTH_ADVERTISE android.permission.BLUETOOTH_CONNECT android.permission.NEARBY_WIFI_DEVICES android.permission.ACCESS_FINE_LOCATION android.permission.ACCESS_COARSE_LOCATION android.permission.ACCESS_BACKGROUND_LOCATION android.permission.ACCESS_MEDIA_LOCATION; do
@@ -83,6 +94,9 @@ rm -f /data/system/package_cache/*/ShareLive-* 2>/dev/null
 # again later so an unrooted boot reparses the stock (CN) APK instead of a stale HK entry
 ( sleep 120; rm -f /data/system/package_cache/*/ShareLive-* 2>/dev/null ) >/dev/null 2>&1 &
 ( sleep 600; rm -f /data/system/package_cache/*/ShareLive-* 2>/dev/null ) >/dev/null 2>&1 &
+# MoseyApp delayed check: Play can update it after boot; revert to the system build again
+( sleep 120; if ! pm path com.google.android.mosey 2>/dev/null | grep -q '^package:/system_ext'; then cmd package uninstall-system-updates com.google.android.mosey >> "$LOG" 2>&1; fi ) >/dev/null 2>&1 &
+( sleep 600; if ! pm path com.google.android.mosey 2>/dev/null | grep -q '^package:/system_ext'; then cmd package uninstall-system-updates com.google.android.mosey >> "$LOG" 2>&1; fi ) >/dev/null 2>&1 &
 #if the module action is not run manually, keep a watcher for the visibility resume bug
 if [ -f "$MODDIR/watch_visibility.sh" ]; then
   setsid /system/bin/sh "$MODDIR/watch_visibility.sh" >/dev/null 2>&1 &
