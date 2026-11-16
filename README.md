@@ -261,6 +261,7 @@ logcat -b all -d | grep mosey_daemon  # daemon 日志
 - `permissive mosey_server` 是安全折衷（域级 permissive，仅限该进程）；
 - S互传 换成港版后，国行「互传联盟」入口可能变化；
 - Galaxy Store 可能把 S互传 更新回国行版，模块会自动回退；
+- Play 商店可能自动更新 MoseyApp（Quick Share extension），导致「与 Apple 设备分享」入口消失；模块会在开机及开机后 2/10 分钟检测并回退到系统版本；
 - 「任何人」10 分钟过期，且切换后必须重启一次分享栈（已由 watcher 自动处理）；
 - 仅测试 SM-S9280 / OneUI 8.5，其它机型（尤其缺 `wonder.ko` 的国行固件）不要照搬；
 - 大文件传输速度约 20–30 Mbps（见「性能实测」），瓶颈在 mosey userspace，无模块级优化空间；
