@@ -41,11 +41,17 @@ while true; do
   NOW=$(date +%s)
   if [ -n "$V" ] && [ "$V" != "$LAST" ]; then
     if [ "$V" = "3" ] && [ -n "$LAST" ] && [ $((NOW - LAST_ACTION)) -gt 20 ]; then
-      log "visibility -> anyone, silent restart"
       sleep 2
-      LAST_ACTION=$NOW
-      NO_OPEN=1 sh "$MODDIR/action.sh" >> "$LOG" 2>&1
-      log "silent restart done"
+      # only restart when ProtocolX actually failed to resume; avoids closing the app
+      # when the guard is intact (the common short-absence case)
+      if logcat -d -t 300 2>/dev/null | grep -q "cannot resume"; then
+        log "visibility -> anyone, resume failed, silent restart"
+        LAST_ACTION=$NOW
+        NO_OPEN=1 sh "$MODDIR/action.sh" >> "$LOG" 2>&1
+        log "silent restart done"
+      else
+        log "visibility -> anyone, protocol resumed normally (no restart)"
+      fi
     fi
     LAST="$V"
   fi
