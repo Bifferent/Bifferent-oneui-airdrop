@@ -63,6 +63,8 @@ if pm path com.google.android.mosey >/dev/null 2>&1; then
       [ -n "$c" ] && pm enable com.google.android.gms/$c >/dev/null 2>&1
     done < "$MODDIR/nearby_components.txt"
   fi
+  # keep Nearby/Mosey out of doze so discovery does not stall after screen-off
+  dumpsys deviceidle whitelist +com.google.android.mosey >/dev/null 2>&1
   log "mosey permissions granted"
 fi
 

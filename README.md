@@ -264,7 +264,8 @@ logcat -b all -d | grep mosey_daemon  # daemon 日志
 - Play 商店可能自动更新 MoseyApp（Quick Share extension），导致「与 Apple 设备分享」入口消失；模块会在开机及开机后 2/10 分钟检测并回退到系统版本；
 - 「任何人」10 分钟过期，且切换后必须重启一次分享栈（已由 watcher 自动处理）；
 - 仅测试 SM-S9280 / OneUI 8.5，其它机型（尤其缺 `wonder.ko` 的国行固件）不要照搬；
-- **VPN 会阻断发现**：开启 VPN（含 always-on VPN）时，S互传 的发送页可能完全发现不了 Apple 设备；使用 AirDrop 时请关闭 VPN，或在 VPN 里放行局域网 / 将 `com.google.android.mosey`、`com.google.android.gms`、`com.samsung.android.app.sharelive` 排除在隧道之外；
+- **VPN 会阻断发现**：三星开启 VPN 时发送页发现不了 Apple 设备；iPhone 开启 VPN 时也会影响它被三星发现；Mac 开启 VPN 不影响。使用 AirDrop 时关闭手机端 VPN，或在 VPN 里放行局域网 / 排除 `com.google.android.mosey`、`com.google.android.gms`、`com.samsung.android.app.sharelive`；
+- **切页后重新发现较慢**：在「接收/发送」页之间切换会触发 `suspendProtocolX` → `resumeProtocolX`，mosey 的 radio 为 `AsNeeded`，daemon 会停止再启动 AWDL（约 2 秒），之后还要等 GMS 重新扫描，通常需要 10–30 秒才恢复完整列表；
 - 大文件传输速度约 20–30 Mbps（见「性能实测」），瓶颈在 mosey userspace，无模块级优化空间；
 - 临时 root 本身会影响 Play Integrity / KNOX，与本模块无关。
 
