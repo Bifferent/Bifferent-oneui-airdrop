@@ -47,7 +47,7 @@ if [ -f "$MODDIR/sepolicy.rule" ]; then
 fi
 
 # 3) (re)start exactly one mosey_server
-pkill -f '/vendor/bin/mosey_server' 2>/dev/null
+pkill -x mosey_server 2>/dev/null
 sleep 1
 log "starting mosey_server"
 nsenter -t 1 -m -- /system/bin/sh -c 'setenforce 0; (runcon u:r:mosey_server:s0 /vendor/bin/mosey_server >/data/adb/mosey_server.log 2>&1 &); sleep 1; setenforce 1'
