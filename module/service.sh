@@ -1,8 +1,33 @@
 #!/system/bin/sh
-# Mosey boot service: mount, start mosey_server, make sure system apps/permissions are ready
+# Mosey boot service: mount, start mosey_server, keep system apps/permissions in shape
 MODDIR=${0%/*}
 LOG=/data/adb/mosey_boot.log
 log() { echo "[$(date '+%m-%d %H:%M:%S')] $*" >> "$LOG"; }
+
+# single instance: the service stage can be triggered more than once (late-load + manual)
+LOCK=/data/adb/mosey_service.lock
+if ! mkdir "$LOCK" 2>/dev/null; then
+  age=$(( $(date +%s) - $(stat -c %Y "$LOCK" 2>/dev/null || echo 0) ))
+  if [ "$age" -lt 900 ]; then
+    log "service already running (lock age ${age}s); exit"
+    exit 0
+  fi
+  rm -rf "$LOCK"
+  mkdir "$LOCK" 2>/dev/null || exit 0
+fi
+echo $$ > "$LOCK/pid"
+
+revert_system_update() {
+  pkg="$1"; pathpat="$2"; n=0
+  while [ $n -lt 10 ]; do
+    if pm path "$pkg" 2>/dev/null | grep -q "$pathpat"; then
+      return 0
+    fi
+    pm uninstall-system-updates "$pkg" >/dev/null 2>&1 || cmd package uninstall-system-updates "$pkg" >/dev/null 2>&1
+    n=$((n+1)); sleep 3
+  done
+  return 1
+}
 
 i=0
 while [ "$(getprop sys.boot_completed)" != "1" ] && [ $i -lt 300 ]; do sleep 1; i=$((i+1)); done
@@ -21,39 +46,22 @@ if [ -f "$MODDIR/sepolicy.rule" ]; then
   log "sepolicy applied"
 fi
 
-# 3) (re)start mosey_server
-if pidof mosey_server >/dev/null 2>&1; then
-  kill -9 $(pidof mosey_server) 2>/dev/null
-  sleep 1
-fi
+# 3) (re)start exactly one mosey_server
+pkill -f '/vendor/bin/mosey_server' 2>/dev/null
+sleep 1
 log "starting mosey_server"
 nsenter -t 1 -m -- /system/bin/sh -c 'setenforce 0; (runcon u:r:mosey_server:s0 /vendor/bin/mosey_server >/data/adb/mosey_server.log 2>&1 &); sleep 1; setenforce 1'
-sleep 1
-if pidof mosey_server >/dev/null 2>&1; then log "mosey_server pid=$(pidof mosey_server)"; else log "mosey_server FAILED"; fi
+sleep 2
+NPID=$(pidof mosey_server)
+if [ -n "$NPID" ]; then log "mosey_server pid=$NPID"; else log "mosey_server FAILED"; fi
 
-# 3) S互传 must be the system (global) build, not the Galaxy Store CN update
-if ! pm path com.samsung.android.app.sharelive 2>/dev/null | grep -q '^package:/system'; then
-  log "reverting ShareLive to system build"
-  n=0
-  while [ $n -lt 5 ]; do
-    cmd package uninstall-system-updates com.samsung.android.app.sharelive >> "$LOG" 2>&1 && break
-    n=$((n+1)); sleep 3
-  done
-  sleep 2
-fi
+# 4) S互传 must be the system (global) build, not the Galaxy Store CN update
+revert_system_update com.samsung.android.app.sharelive '^package:/system' && log "ShareLive system build ok"
 
-# 3b) MoseyApp must be the system build; Play may auto-update it to a newer data app
-if ! pm path com.google.android.mosey 2>/dev/null | grep -q '^package:/system_ext'; then
-  log "reverting MoseyApp to system build"
-  n=0
-  while [ $n -lt 5 ]; do
-    cmd package uninstall-system-updates com.google.android.mosey >> "$LOG" 2>&1 && break
-    n=$((n+1)); sleep 3
-  done
-  sleep 1
-fi
+# 4b) MoseyApp must be the system build; Play may auto-update it to a newer data app
+revert_system_update com.google.android.mosey '^package:/system_ext' && log "MoseyApp system build ok"
 
-# 4) MoseyApp runtime permissions + GMS nearby sharing components
+# 5) MoseyApp runtime permissions + GMS nearby sharing components
 if pm path com.google.android.mosey >/dev/null 2>&1; then
   for p in android.permission.BLUETOOTH_SCAN android.permission.BLUETOOTH_ADVERTISE android.permission.BLUETOOTH_CONNECT android.permission.NEARBY_WIFI_DEVICES android.permission.ACCESS_FINE_LOCATION android.permission.ACCESS_COARSE_LOCATION android.permission.ACCESS_BACKGROUND_LOCATION android.permission.ACCESS_MEDIA_LOCATION; do
     pm grant com.google.android.mosey $p >/dev/null 2>&1
@@ -68,7 +76,7 @@ if pm path com.google.android.mosey >/dev/null 2>&1; then
   log "mosey permissions granted"
 fi
 
-# 5) MoseyApp needs a PackageManager rescan -> framework restart, once per boot
+# 6) MoseyApp needs a PackageManager rescan -> framework restart, once per boot
 NEED_REBOOT=0
 if ! pm path com.google.android.mosey >/dev/null 2>&1; then NEED_REBOOT=1; fi
 if ! pm path com.samsung.android.app.sharelive 2>/dev/null | grep -q '^package:/system'; then NEED_REBOOT=1; fi
@@ -78,11 +86,9 @@ if [ "$NEED_REBOOT" = "1" ]; then
   DONE=$(cat /data/adb/mosey_last_softreboot 2>/dev/null)
   if [ "$BID" != "$DONE" ]; then
     echo "$BID" > /data/adb/mosey_last_softreboot
-    # Scene's "系统自救" (scene_resurgence) treats a post-fs-data re-run within 180s as a
-    # bootloop and disables every other module. Clear its markers before our soft reboot.
-    for m in scene_resurgence; do
-      rm -f "/data/adb/modules/$m/splash.last" "/data/adb/modules/$m/animation.last" 2>/dev/null
-    done
+    # Scene's "系统自救" treats a post-fs-data re-run within 180s as a bootloop and
+    # disables every other module; clear its markers before our soft reboot.
+    rm -f /data/adb/modules/scene_resurgence/splash.last /data/adb/modules/scene_resurgence/animation.last 2>/dev/null
     log "cleared scene_resurgence boot markers"
     log "triggering soft reboot"
     nohup /data/adb/ksud soft-reboot >> "$LOG" 2>&1 &
@@ -90,17 +96,21 @@ if [ "$NEED_REBOOT" = "1" ]; then
     log "already soft-rebooted this boot; skip"
   fi
 fi
-# keep next boot clean: drop the ShareLive parse cache written for the mounted (HK) APK
+
+# 7) keep next unrooted boot clean: drop the ShareLive parse cache for the mounted (HK) APK
 rm -f /data/system/package_cache/*/ShareLive-* 2>/dev/null
-# delayed cache clear: PMS may rewrite the cache asynchronously after boot; clear it
-# again later so an unrooted boot reparses the stock (CN) APK instead of a stale HK entry
 ( sleep 120; rm -f /data/system/package_cache/*/ShareLive-* 2>/dev/null ) >/dev/null 2>&1 &
 ( sleep 600; rm -f /data/system/package_cache/*/ShareLive-* 2>/dev/null ) >/dev/null 2>&1 &
-# MoseyApp delayed check: Play can update it after boot; revert to the system build again
-( sleep 120; if ! pm path com.google.android.mosey 2>/dev/null | grep -q '^package:/system_ext'; then cmd package uninstall-system-updates com.google.android.mosey >> "$LOG" 2>&1; fi ) >/dev/null 2>&1 &
-( sleep 600; if ! pm path com.google.android.mosey 2>/dev/null | grep -q '^package:/system_ext'; then cmd package uninstall-system-updates com.google.android.mosey >> "$LOG" 2>&1; fi ) >/dev/null 2>&1 &
-#if the module action is not run manually, keep a watcher for the visibility resume bug
+# Play can re-update MoseyApp after boot; re-check later
+( sleep 120; revert_system_update com.google.android.mosey '^package:/system_ext' >/dev/null 2>&1 ) >/dev/null 2>&1 &
+( sleep 600; revert_system_update com.google.android.mosey '^package:/system_ext' >/dev/null 2>&1 ) >/dev/null 2>&1 &
+
+# 8) visibility watcher (single instance)
 if [ -f "$MODDIR/watch_visibility.sh" ]; then
+  pkill -f watch_visibility.sh 2>/dev/null
+  sleep 1
   setsid /system/bin/sh "$MODDIR/watch_visibility.sh" >/dev/null 2>&1 &
   log "visibility watcher launched"
 fi
+
+rm -rf "$LOCK"
