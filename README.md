@@ -338,5 +338,8 @@ A: 检查 `/data/adb/modules/<目录名>` 是否与 `module.prop` 的 `id` 一�
 **Q: 重启后未 Root 状态 S互传 闪退？**
 A: 这是替换系统 APK 后 PMS 解析缓存不一致导致的。模块会在切换 APK 前后以及开机后 2/10 分钟删除 `ShareLive-*` 缓存；手动修复：`rm -f /data/system/package_cache/*/ShareLive-*` 后重启。从 Root（港版）回到未 Root 前，建议等 10 分钟让延迟清理生效，或手动执行这条命令后再硬重启。
 
+**Q: 三星列表里看不到 Mac，但 iPhone 正常？**
+A: 先查 Mac 的 Wi-Fi 关联：`networksetup -getairportnetwork en0` 应输出 Wi-Fi 名称。若显示「未关联」但 `en0` 有 IP，说明关联状态损坏——AWDL 会起来（三星能看到该 peer），但 `sharingd` 不注册 `_airdrop._tcp`，三星日志表现为 `Could not extract service info ... sending goodbye`。修复：系统设置 → 网络 → Wi-Fi → 忘记此网络后重新加入；必要时 `sudo killall sharingd` 触发重注册。
+
 **Q: 切回「所有人」后突然发现不了？**
 A: ProtocolX 挂起无法恢复，模块的 `watch_visibility.sh` 会自动重启分享栈；也可以点模块 action 按钮。
