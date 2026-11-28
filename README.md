@@ -266,7 +266,7 @@ logcat -b all -d | grep mosey_daemon  # daemon 日志
 - 仅测试 SM-S9280 / OneUI 8.5，其它机型（尤其缺 `wonder.ko` 的国行固件）不要照搬；
 - **VPN 会阻断发现**：三星开启 VPN 时发送页发现不了 Apple 设备；iPhone 开启 VPN 时也会影响它被三星发现；Mac 开启 VPN 不影响。使用 AirDrop 时关闭手机端 VPN，或在 VPN 里放行局域网 / 排除 `com.google.android.mosey`、`com.google.android.gms`、`com.samsung.android.app.sharelive`；
 - **切页后重新发现较慢**：在「接收/发送」页之间切换会触发 `suspendProtocolX` → `resumeProtocolX`，mosey 的 radio 为 `AsNeeded`，daemon 会停止再启动 AWDL（约 2 秒），之后还要等 GMS 重新扫描，通常需要 10–30 秒才恢复完整列表；
-- **macOS 26/27 的 Mac 可能无法被三星发现**：新版 macOS 通过 `_applicationservicepairing._tcp`（TXT 内含 `sn=com.apple.sharingd.AirDrop`）发布 AirDrop 身份，本模块使用的 `mosey_server`（2026-02 构建）只解析传统的 `_airdrop._tcp`，日志表现为 `Could not extract service info ... sending goodbye`；iPhone 不受影响。根治需要更新固件里的 `mosey_server`；
+- **Mac 无法被三星发现时先查 Wi-Fi 关联**：若 macOS 的 Wi-Fi 接口报「未关联任何网络」但仍有 IP（`networksetup -getairportnetwork en0` 与实际地址不一致），AWDL 会起来（三星能看到该 peer）却不注册 `_airdrop._tcp`，日志表现为 `Could not extract service info ... sending goodbye`。在系统设置里「忘记此网络」后重新加入即可恢复；`sharingd` 一直在监听 8770，不需要重装或改系统文件；
 - 大文件传输速度约 20–30 Mbps（见「性能实测」），瓶颈在 mosey userspace，无模块级优化空间；
 - 临时 root 本身会影响 Play Integrity / KNOX，与本模块无关。
 
