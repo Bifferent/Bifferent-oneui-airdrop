@@ -4,18 +4,22 @@ MODDIR=${0%/*}
 LOG=/data/adb/mosey_boot.log
 log() { echo "[$(date '+%m-%d %H:%M:%S')] $*" >> "$LOG"; }
 
-# single instance: the service stage can be triggered more than once (late-load + manual)
+# Atomic single-instance lock. mkdir is one atomic filesystem operation; a pid+age marker
+# is not sufficient because a second invocation can enter while the first is still preparing.
 LOCK=/data/adb/mosey_service.lock
 if ! mkdir "$LOCK" 2>/dev/null; then
-  age=$(( $(date +%s) - $(stat -c %Y "$LOCK" 2>/dev/null || echo 0) ))
-  if [ "$age" -lt 900 ]; then
-    log "service already running (lock age ${age}s); exit"
+  LOCKPID=$(cat "$LOCK/pid" 2>/dev/null)
+  if [ -n "$LOCKPID" ] && kill -0 "$LOCKPID" 2>/dev/null; then
+    log "service already running pid=$LOCKPID; exit"
     exit 0
   fi
+  # Recover stale lock only when its recorded owner is gone.
   rm -rf "$LOCK"
   mkdir "$LOCK" 2>/dev/null || exit 0
 fi
 echo $$ > "$LOCK/pid"
+cleanup_lock() { rm -rf "$LOCK"; }
+trap cleanup_lock EXIT INT TERM
 
 revert_system_update() {
   pkg="$1"; pathpat="$2"; n=0
@@ -46,13 +50,14 @@ if [ -f "$MODDIR/sepolicy.rule" ]; then
   log "sepolicy applied"
 fi
 
-# 3) (re)start exactly one mosey_server
-pkill -x mosey_server 2>/dev/null
-sleep 1
-log "starting mosey_server"
-nsenter -t 1 -m -- /system/bin/sh -c 'setenforce 0; (runcon u:r:mosey_server:s0 /vendor/bin/mosey_server >/data/adb/mosey_server.log 2>&1 &); sleep 1; setenforce 1'
-sleep 2
+# 3) maintain exactly one mosey_server instance. The service lock serializes this stage.
 NPID=$(pidof mosey_server)
+if [ -z "$NPID" ]; then
+  log "starting mosey_server"
+  nsenter -t 1 -m -- /system/bin/sh -c 'setenforce 0; (runcon u:r:mosey_server:s0 /vendor/bin/mosey_server >/data/adb/mosey_server.log 2>&1 &); sleep 1; setenforce 1'
+  sleep 2
+  NPID=$(pidof mosey_server)
+fi
 if [ -n "$NPID" ]; then log "mosey_server pid=$NPID"; else log "mosey_server FAILED"; fi
 
 # 4) S互传 must be the system (global) build, not the Galaxy Store CN update
