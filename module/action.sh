@@ -4,6 +4,12 @@
 MODDIR=${0%/*}
 LOG=/data/adb/mosey_boot.log
 log() { echo "[$(date '+%m-%d %H:%M:%S')] [action] $*" >> "$LOG"; }
+# Serialize action with service.sh using the same BusyBox lock file.
+if [ "$1" != "--locked" ]; then
+  exec busybox flock -n /data/adb/mosey_service.lock /system/bin/sh "$0" --locked
+fi
+shift
+
 
 log "restarting share stack"
 /data/adb/ksud sepolicy apply "$MODDIR/sepolicy.rule" >/dev/null 2>&1

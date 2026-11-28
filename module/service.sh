@@ -4,22 +4,13 @@ MODDIR=${0%/*}
 LOG=/data/adb/mosey_boot.log
 log() { echo "[$(date '+%m-%d %H:%M:%S')] $*" >> "$LOG"; }
 
-# Atomic single-instance lock. mkdir is one atomic filesystem operation; a pid+age marker
-# is not sufficient because a second invocation can enter while the first is still preparing.
-LOCK=/data/adb/mosey_service.lock
-if ! mkdir "$LOCK" 2>/dev/null; then
-  LOCKPID=$(cat "$LOCK/pid" 2>/dev/null)
-  if [ -n "$LOCKPID" ] && kill -0 "$LOCKPID" 2>/dev/null; then
-    log "service already running pid=$LOCKPID; exit"
-    exit 0
-  fi
-  # Recover stale lock only when its recorded owner is gone.
-  rm -rf "$LOCK"
-  mkdir "$LOCK" 2>/dev/null || exit 0
+# BusyBox flock serializes the whole body and passes the lock fd to this shell.
+LOCKFD=/data/adb/mosey_service.lock
+if [ "$1" != "--locked" ]; then
+  exec busybox flock -n "$LOCKFD" /system/bin/sh "$0" --locked
 fi
-echo $$ > "$LOCK/pid"
-cleanup_lock() { rm -rf "$LOCK"; }
-trap cleanup_lock EXIT INT TERM
+shift
+
 
 revert_system_update() {
   pkg="$1"; pathpat="$2"; n=0
