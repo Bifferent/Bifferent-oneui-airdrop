@@ -87,7 +87,7 @@ if [ "$NEED_REBOOT" = "1" ]; then
     rm -f /data/adb/modules/scene_resurgence/splash.last /data/adb/modules/scene_resurgence/animation.last 2>/dev/null
     log "cleared scene_resurgence boot markers"
     log "triggering soft reboot"
-    nohup /data/adb/ksud soft-reboot >> "$LOG" 2>&1 &
+    nohup /data/adb/ksud soft-reboot >> "$LOG" 2>&1 9>&- &
   else
     log "already soft-rebooted this boot; skip"
   fi
@@ -95,17 +95,17 @@ fi
 
 # 7) keep next unrooted boot clean: drop the ShareLive parse cache for the mounted (HK) APK
 rm -f /data/system/package_cache/*/ShareLive-* 2>/dev/null
-( sleep 120; rm -f /data/system/package_cache/*/ShareLive-* 2>/dev/null ) >/dev/null 2>&1 &
-( sleep 600; rm -f /data/system/package_cache/*/ShareLive-* 2>/dev/null ) >/dev/null 2>&1 &
+( sleep 120; rm -f /data/system/package_cache/*/ShareLive-* 2>/dev/null ) >/dev/null 2>&1 9>&- &
+( sleep 600; rm -f /data/system/package_cache/*/ShareLive-* 2>/dev/null ) >/dev/null 2>&1 9>&- &
 # Play can re-update MoseyApp after boot; re-check later
-( sleep 120; revert_system_update com.google.android.mosey '^package:/system_ext' >/dev/null 2>&1 ) >/dev/null 2>&1 &
-( sleep 600; revert_system_update com.google.android.mosey '^package:/system_ext' >/dev/null 2>&1 ) >/dev/null 2>&1 &
+( sleep 120; revert_system_update com.google.android.mosey '^package:/system_ext' >/dev/null 2>&1 ) >/dev/null 2>&1 9>&- &
+( sleep 600; revert_system_update com.google.android.mosey '^package:/system_ext' >/dev/null 2>&1 ) >/dev/null 2>&1 9>&- &
 
 # 8) visibility watcher (single instance)
 if [ -f "$MODDIR/watch_visibility.sh" ]; then
   pkill -f watch_visibility.sh 2>/dev/null
   sleep 1
-  setsid /system/bin/sh "$MODDIR/watch_visibility.sh" >/dev/null 2>&1 &
+  setsid /system/bin/sh "$MODDIR/watch_visibility.sh" >/dev/null 2>&1 9>&- &
   log "visibility watcher launched"
 fi
 
